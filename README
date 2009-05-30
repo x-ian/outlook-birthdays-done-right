@@ -1,0 +1,14 @@
+Outlook Birthdays done right
+============================
+Quick and dirty Outlook 2003 VBA macro to extend the birthday capabilities:
+- More than one birthday entry per contact
+- Control over the Outlook reminders for those birthdays
+- Remove of all birthday entries (from this macro and the messed-up Outlook ones)
+ 
+Note
+----
+These macros are developed against a german version of Outlook. They will most likely fail for other languages. Just drop my a note if you need a port to another language. Shouldn't be too difficult.
+
+Need more?
+----------
+For (slightly) more details see http://x-ian.net/2009/05/01/swap-lastname-with-firstname-in-outlook

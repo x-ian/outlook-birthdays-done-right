@@ -1,0 +1,130 @@
+Sub LoescheGeburtstageUndJahresTageImKalendar()
+    Dim myNameSpace As NameSpace
+    Dim Kontakte As Outlook.Items
+    Dim strContactFilter As String
+    
+    Set myOlApp = New Outlook.Application
+    Set myNameSpace = myOlApp.GetNamespace("MAPI")
+
+    Call DeleteAllBirthdayAnniversary(myNameSpace)
+End Sub
+
+Sub LegeGeburtstageUndJahrestageImKalendarAn()
+    Dim myNameSpace As NameSpace
+    Dim Kontakte As Outlook.Items
+    Dim strContactFilter As String
+    
+    'MsgBox "Diese Routine wird alle Geburtstage erneut anlegen und vorher alle alten löschen. Bitte wählen Sie im folgenden den Ordner aus, der Ihre Kontaktdaten beinhaltet.", vbInformation, "Geburtstage Import"
+    MsgBox "Diese Routine wird alle Geburtstage erneut anlegen und vorher alle alten löschen.", vbInformation, "Geburtstage Import"
+
+    Set myOlApp = New Outlook.Application
+    Set myNameSpace = myOlApp.GetNamespace("MAPI")
+
+    Call DeleteAllBirthdayAnniversary(myNameSpace)
+
+    'Set myFolder = Session.PickFolder
+    Set myFolder = myNameSpace.GetDefaultFolder(olFolderContacts)
+
+    strContactFilter = "[MessageClass] = 'IPM.Contact'"
+    Set Kontakte = myFolder.Items.Restrict(strContactFilter)
+
+    For i = Kontakte.Count To 1 Step -1
+        Kontakte(i).Display
+        mybirthday = Kontakte(i).Birthday
+        myFirstName = Kontakte(i).FirstName
+        
+'        If mybirthday <> "01.01.4501" Then
+            ' erstmal zurücksetzen
+            Kontakte(i).Birthday = "01.01.4501 "
+            Kontakte(i).Save
+            
+            ' dann alle Notizen durcharbeiten
+            SaveAllBirthdaysFromBody (Kontakte(i))
+            
+            ' und erst zum Schluss das richtige Datum wieder setzen
+            Kontakte(i).Birthday = mybirthday
+            Kontakte(i).FirstName = myFirstName
+            Kontakte(i).Save
+'        End If
+        
+        myAnniversary = Kontakte(i).Anniversary
+        If myAnniversary <> "01.01.4501" Then
+            Kontakte(i).Anniversary = "01.01.4501 "
+            Kontakte(i).Save
+            Kontakte(i).Anniversary = myAnniversary
+            Kontakte(i).Save
+        End If
+        Kontakte(i).Close 0
+    Next i
+
+    Call ResetAllBirthdayAnniversary(myNameSpace)
+
+    MsgBox "Fertig!" & vbCrLf & myFolder.Items.Count & " Kontakte bearbeitet.", vbInformation, "Geburtstag / Jahrestag Import"
+End Sub
+
+Sub SaveAllBirthdaysFromBody(contact As ContactItem)
+
+    Dim alleZeilen As Variant
+    
+    alleZeilen = Split(contact.Body, vbCrLf)
+    Dim i As Integer
+    
+    
+    For i = 0 To UBound(alleZeilen)
+        Dim zeile As String
+        zeile = alleZeilen(i)
+        
+        If InStr(zeile, "GEB ") = 1 And InStr(zeile, ":") > 4 And InStr(zeile, ":") < Len(zeile) Then
+            Dim name As String
+            name = Mid$(zeile, Len("GEB "), InStr(zeile, ":") - Len("GEB "))
+            name = Trim(name)
+            Dim datum As String
+            datum = Mid$(zeile, InStr(zeile, ":") + 1)
+            datum = Trim(datum)
+            If (Right$(datum, 1) = ".") Then
+                ' mach ein dummes defaulting, wenn keiner das jahr kennt
+                datum = datum + "2009"
+            End If
+            
+            If IsDate(datum) Then
+                contact.FirstName = name
+                contact.Birthday = datum
+                contact.Save
+            End If
+        End If
+    Next i
+End Sub
+
+Sub DeleteAllBirthdayAnniversary(myNameSpace As NameSpace)
+    Set myFolder = myNameSpace.GetDefaultFolder(olFolderCalendar)
+    Set myItems = myFolder.Items
+    For i = myFolder.Items.Count To 1 Step -1
+        If InStr(myItems(i).Subject, "Geburtstag ") > 0 Or InStr(myItems(i).Subject, "Jahrestag ") > 0 Then
+            myItems(i).Delete
+        End If
+    Next
+End Sub
+
+Sub ResetAllBirthdayAnniversary(myNameSpace As NameSpace)
+    Dim StrBuffer As String
+    Dim LenBuffer As Long
+    
+    Set myFolder = myNameSpace.GetDefaultFolder(olFolderCalendar)
+    Set myItems = myFolder.Items
+    For i = myFolder.Items.Count To 1 Step -1
+        If InStr(myItems(i).Subject, "Geburtstag ") > 0 Or InStr(myItems(i).Subject, "Jahrestag ") > 0 Then
+            myItems(i).ReminderMinutesBeforeStart = 1800
+            
+            If InStr(myItems(i).Subject, "Geburtstag von") Then
+                StrBuffer = myItems(i).Subject
+                LenBuffer = Len(StrBuffer)
+                StrBuffer = Right(StrBuffer, (LenBuffer - Len("Geburtstag von")))
+                StrBuffer = "Geburtstag" + StrBuffer
+                myItems(i).Subject = StrBuffer
+            End If
+            
+            myItems(i).Save
+        End If
+    Next
+End Sub
+
